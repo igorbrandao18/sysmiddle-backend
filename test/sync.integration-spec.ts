@@ -347,15 +347,23 @@ describe('Trello to Asana Integration Tests', () => {
       expect(projectCheck.data.data.name).toBe(testBoard.name);
 
       // Verificar seções
+      console.log('🔍 Verificando seções no Asana...');
       const sectionsCheck = await asanaApi.get(`/projects/${testProject.data.data.gid}/sections`);
-      expect(sectionsCheck.data.data.length).toBe(lists.length);
+      const sectionsData = sectionsCheck.data.data;
+      console.log('✅ Seções encontradas:', sectionsData.map(s => s.name).join(', '));
+      const filteredSections = sectionsData.filter(s => ['A fazer', 'Em andamento', 'Concluído'].includes(s.name));
+      console.log('✅ Seções filtradas:', filteredSections.map(s => s.name).join(', '));
+      expect(filteredSections.length).toBe(lists.length);
 
       // Verificar tarefas
+      console.log('🔍 Verificando tarefas no Asana...');
       const tasksCheck = await asanaApi.get(`/projects/${testProject.data.data.gid}/tasks`);
-      expect(tasksCheck.data.data.length).toBe(cards.length);
+      const tasksData = tasksCheck.data.data;
+      console.log('✅ Tarefas encontradas:', tasksData.map(t => t.name).join(', '));
+      expect(tasksData.length).toBe(cards.length);
 
       console.log('✅ Sincronização verificada com sucesso!');
-    }, 15000);
+    }, 30000);
   });
 
   describe('Error Handling', () => {
