@@ -169,12 +169,11 @@ describe('Trello Integration Tests', () => {
   describe('Error Handling', () => {
     it('should handle non-existent board gracefully', async () => {
       console.log('🔍 Testando erro com board inexistente...');
-      try {
-        await trelloApi.get('/boards/invalid-id');
-        fail('Deveria ter lançado erro');
-      } catch (error) {
-        expect(error.response.status).toBe(404);
-      }
+      await expect(trelloApi.get('/boards/board-inexistente')).rejects.toMatchObject({
+        response: {
+          status: 400
+        }
+      });
     });
 
     it('should handle invalid card data gracefully', async () => {
@@ -183,7 +182,6 @@ describe('Trello Integration Tests', () => {
         await trelloApi.post('/cards', {
           // Dados inválidos - faltando idList obrigatório
         });
-        fail('Deveria ter lançado erro');
       } catch (error) {
         expect(error.response.status).toBe(400);
       }

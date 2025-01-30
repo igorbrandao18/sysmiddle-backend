@@ -8,6 +8,8 @@ import { AsanaService } from '../src/services/asana.service';
 import { SyncService } from '../src/services/sync.service';
 import { SyncController } from '../src/controllers/sync.controller';
 import { describe, it, expect, beforeAll, vi, beforeEach, afterAll } from 'vitest';
+import { ConfigModule } from '@nestjs/config';
+import { AppModule } from '../src/app.module';
 
 describe('SyncController (e2e)', () => {
   let app: INestApplication;
@@ -65,62 +67,61 @@ describe('SyncController (e2e)', () => {
     // Mock do SyncService
     mockSyncService = {
       syncBoardToProject: vi.fn().mockImplementation(async (boardId: string, workspaceId: string) => {
-        // Primeiro, tenta obter o board do Trello
-        await mockTrelloService.getBoard(boardId);
-        
-        // Se conseguiu obter o board, tenta criar o projeto no Asana
-        await mockAsanaService.createProject('Test Board', workspaceId);
-        
-        return {
-          success: true,
-          message: 'Sync completed successfully',
-        };
+        try {
+          // Primeiro, tenta obter o board do Trello
+          await mockTrelloService.getBoard(boardId);
+          
+          // Se conseguiu obter o board, tenta criar o projeto no Asana
+          await mockAsanaService.createProject('Test Board', workspaceId);
+          
+          return {
+            success: true,
+            message: 'Sync completed successfully',
+          };
+        } catch (error) {
+          if (error.message === 'Board not found') {
+            throw new Error('Board not found');
+          }
+          if (error.message === 'Invalid workspace') {
+            throw new Error('Invalid workspace');
+          }
+          throw error;
+        }
       }),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      controllers: [SyncController],
-      providers: [
-        {
-          provide: ConfigService,
-          useValue: {
-            get: vi.fn().mockImplementation((key: string) => {
-              switch (key) {
-                case 'TRELLO_API_KEY':
-                  return 'test-api-key';
-                case 'TRELLO_TOKEN':
-                  return 'test-token';
-                case 'ASANA_ACCESS_TOKEN':
-                  return 'test-access-token';
-                default:
-                  return undefined;
-              }
-            }),
-          },
-        },
-        {
-          provide: LoggerService,
-          useValue: {
-            log: vi.fn(),
-            error: vi.fn(),
-            warn: vi.fn(),
-            debug: vi.fn(),
-          },
-        },
-        {
-          provide: TrelloService,
-          useValue: mockTrelloService,
-        },
-        {
-          provide: AsanaService,
-          useValue: mockAsanaService,
-        },
-        {
-          provide: SyncService,
-          useValue: mockSyncService,
-        },
-      ],
-    }).compile();
+      imports: [AppModule],
+    })
+    .overrideProvider(ConfigService)
+    .useValue({
+      get: vi.fn().mockImplementation((key: string) => {
+        switch (key) {
+          case 'TRELLO_API_KEY':
+            return 'test-api-key';
+          case 'TRELLO_TOKEN':
+            return 'test-token';
+          case 'ASANA_ACCESS_TOKEN':
+            return 'test-access-token';
+          default:
+            return undefined;
+        }
+      }),
+    })
+    .overrideProvider(LoggerService)
+    .useValue({
+      log: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+    })
+    .overrideProvider(TrelloService)
+    .useValue(mockTrelloService)
+    .overrideProvider(AsanaService)
+    .useValue(mockAsanaService)
+    .overrideProvider(SyncService)
+    .useValue(mockSyncService)
+    .compile();
 
     app = moduleFixture.createNestApplication();
     
